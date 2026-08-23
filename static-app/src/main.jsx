@@ -18,6 +18,7 @@ import './no-icloud.css';
 import './home.css';
 import './room-tabs.css';
 import './relocation.css';
+import './navigation-fix.css';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 const goals = [{k:'step_goal',label:'Steps',value:8000},{k:'movement_goal_minutes',label:'Movement',value:30},{k:'scripture_goal_minutes',label:'Scripture',value:20},{k:'sleep_goal_minutes',label:'Sleep',value:420}];
@@ -72,5 +73,8 @@ const ProfileBase=ProfileSettings;
 function FinalSettings(props){return <><ProfileBase {...props}/><CalendarPreferences/></>}
 Admin=FinalAdmin;
 Settings=FinalSettings;
-HomeHub=RoomHomeHub;
+const RoomControlBase=RoomHomeHub;
+function BrightnessPanel(){const[lights,setLights]=useState([]);const[msg,setMsg]=useState('');async function call(action,extra={}){const{data:{session}}=await supabase.auth.getSession();return fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ft-home-assistant`,{method:'POST',headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({action,...extra})}).then(r=>r.json())}async function load(){const x=await call('states');setLights((x.entities||[]).filter(e=>e.domain==='light'&&e.supports_brightness))}useEffect(()=>{load()},[]);async function setBrightness(entity_id,value){setMsg('Adjusting…');const x=await call('control',{entity_id,brightness_pct:Number(value)});setMsg(x.error||'Brightness updated.');if(!x.error)load()}if(!lights.length)return null;return <div className="page brightnesspage"><section className="panel"><p className="kicker">LIGHT LEVELS</p><h2>Brightness</h2><div className="brightnessgrid">{lights.map(l=><label key={l.entity_id}><div><strong>{l.display_name}</strong><small>{l.room||'Other'}</small></div><input type="range" min="1" max="100" defaultValue={l.brightness||50} onChange={e=>setBrightness(l.entity_id,e.target.value)}/><b>{l.brightness||0}%</b></label>)}</div>{msg&&<p className="message status">{msg}</p>}</section></div>}
+function FinalHomeHub(){return <><RoomControlBase/><BrightnessPanel/></>}
+HomeHub=FinalHomeHub;
 createRoot(document.getElementById('root')).render(<App/>);
