@@ -45,6 +45,19 @@ Deno.serve(async req=>{
   const{data:{user}}=await sb.auth.getUser(jwt);if(!user)return json({error:'Sign in required'},401);
   if(!publicKey||!privateKey)return json({error:'Notifications are not configured yet'},503);
   if(body.action==='public_key')return json({public_key:publicKey});
+  if(body.action==='encouragement'){
+    const allowed=['Way to stay faithful!','Proud of your progress!','Keep taking the next right step!','We are in this together!'];
+    if(!allowed.includes(body.message))return json({error:'Choose one of the available encouragements'},400);
+    const{data:sender}=await sb.from('ft_household_members').select('household_id').eq('user_id',user.id).limit(1).single();
+    const{data:recipient}=await sb.from('ft_household_members').select('household_id').eq('user_id',body.to_user_id).eq('household_id',sender?.household_id||'00000000-0000-0000-0000-000000000000').maybeSingle();
+    if(!sender||!recipient||body.to_user_id===user.id)return json({error:'Family member not found'},403);
+    const{error:postError}=await sb.from('ft_family_encouragements').insert({household_id:sender.household_id,from_user_id:user.id,to_user_id:body.to_user_id,message:body.message});
+    if(postError)return json({error:postError.message},400);
+    const{data:profile}=await sb.from('ft_profiles').select('display_name').eq('id',user.id).single();
+    const{data:subs}=await sb.from('ft_push_subscriptions').select('*').eq('household_id',sender.household_id).eq('user_id',body.to_user_id);
+    let sent=0;for(const sub of subs||[])if(await send(sub,{title:`${profile?.display_name||'Your family'} encouraged you`,body:body.message,url:`${appUrl}/?view=family`}))sent++;
+    return json({ok:true,posted:true,notified:sent>0,sent});
+  }
   if(body.action==='test'){
     const{data:subs}=await sb.from('ft_push_subscriptions').select('*').eq('user_id',user.id);
     if(!subs?.length)return json({error:'Enable notifications on this device first'},400);
