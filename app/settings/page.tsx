@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 type PersonalSettings = {
@@ -19,7 +18,7 @@ export default function PersonalSettingsPage() {
   const save = async () => { const response = await fetch('/api/settings', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ member: profile }) }); setStatus(response.ok ? 'Your settings are saved.' : 'Sign in to save your settings.'); };
 
   return <main className="personal-settings-page">
-    <header><Link className="brand" href="/"><span className="brand-mark">FT</span><span><strong>Faithful</strong><em>Together</em></span></Link><Link href="/">← Today</Link></header>
+    <header><a className="brand" href="/"><span className="brand-mark">FT</span><span><strong>Faithful</strong><em>Together</em></span></a><a href="/">← Today</a></header>
     <section className="personal-settings-wrap">
       <div className="personal-intro"><span className={`avatar xl ${profile.color}`}>{profile.displayName[0]}</span><div><span>MY SETTINGS</span><h1>{profile.displayName === 'My' ? 'My personal journey' : `${profile.displayName}’s personal journey`}</h1><p>The family shares a direction. Your pace, goals, limits, and health details remain your own.</p></div></div>
       <div className="personal-settings-grid">

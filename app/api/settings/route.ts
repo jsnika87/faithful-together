@@ -6,6 +6,7 @@ type MemberPatch = {
   memberId: string;
   displayName?: string;
   inviteEmail?: string | null;
+  role?: 'adult' | 'teen';
   personalStartDate?: string;
   goalWeight?: number | null;
   stepGoal?: number;
@@ -87,7 +88,7 @@ export async function PATCH(request: Request) {
     const owned = await env.DB.prepare('SELECT id, auth_user_id AS authUserId FROM members WHERE id = ? AND household_id = ?').bind(member.memberId, householdId).first<{ id: string; authUserId: string | null }>();
     if (!owned) return NextResponse.json({ error: 'Member not found' }, { status: 404 });
     if (!isAdmin && owned.authUserId !== user.userId) return NextResponse.json({ error: 'Not allowed' }, { status: 403 });
-    if (member.displayName) await env.DB.prepare('UPDATE members SET display_name = ?, invite_email = ? WHERE id = ?').bind(member.displayName, isAdmin ? (member.inviteEmail || null) : null, member.memberId).run();
+    if (member.displayName) await env.DB.prepare('UPDATE members SET display_name = ?, invite_email = COALESCE(?, invite_email), role = ? WHERE id = ?').bind(member.displayName, isAdmin ? (member.inviteEmail || null) : null, isAdmin ? (member.role ?? 'adult') : (await env.DB.prepare('SELECT role FROM members WHERE id = ?').bind(member.memberId).first<{ role: string }>())?.role ?? 'adult', member.memberId).run();
     await env.DB.prepare('UPDATE member_settings SET personal_start_date = ?, goal_weight = ?, step_goal = ?, hydration_goal_oz = ?, sleep_goal_minutes = ?, movement_minutes = ?, scripture_minutes = ?, reminders_enabled = ?, show_weight_to_household = ?, updated_at = ? WHERE member_id = ?').bind(
       member.personalStartDate || null, member.goalWeight ?? null, member.stepGoal ?? 7000, member.hydrationGoalOz ?? null, member.sleepGoalMinutes ?? 420, member.movementMinutes ?? 20, member.scriptureMinutes ?? 20, member.remindersEnabled ? 1 : 0, member.showWeightToHousehold ? 1 : 0, now, member.memberId,
     ).run();
@@ -102,4 +103,25 @@ export async function PATCH(request: Request) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+export async function POST(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  const householdId = await getOrCreateHousehold(user.userId, user.email);
+  const ownership = await env.DB.prepare('SELECT id FROM households WHERE id = ? AND owner_user_id = ?').bind(householdId, user.userId).first();
+  if (!ownership) return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+  const body = await request.json() as { displayName?: string; inviteEmail?: string; role?: 'adult' | 'teen' };
+  const displayName = body.displayName?.trim();
+  if (!displayName) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  const role = body.role === 'adult' ? 'adult' : 'teen';
+  const color = ['clay', 'sage', 'gold', 'blue'][Math.floor(Math.random() * 4)];
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO members (id, household_id, auth_user_id, invite_email, display_name, role, color, private_health_data, created_at) VALUES (?, ?, NULL, ?, ?, ?, ?, 1, ?)').bind(id, householdId, body.inviteEmail?.trim() || null, displayName, role, color, now),
+    env.DB.prepare('INSERT INTO member_settings (id, member_id, step_goal, sleep_goal_minutes, movement_minutes, scripture_minutes, reminders_enabled, show_weight_to_household, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, 0, ?)').bind(crypto.randomUUID(), id, role === 'teen' ? 8000 : 7000, role === 'teen' ? 540 : 420, role === 'teen' ? 60 : 20, role === 'teen' ? 10 : 20, now),
+  ]);
+  return NextResponse.json({ id, displayName, inviteEmail: body.inviteEmail?.trim() || null, role, color }, { status: 201 });
 }

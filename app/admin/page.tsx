@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 type Member = {
@@ -29,6 +28,8 @@ export default function AdminPage() {
   const [members, setMembers] = useState(fallbackMembers);
   const [selectedId, setSelectedId] = useState('jay');
   const [saved, setSaved] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
+  const [newMember, setNewMember] = useState({ displayName: '', inviteEmail: '', role: 'adult' as 'adult' | 'teen' });
   const [global, setGlobal] = useState({ programName: 'Faithful Together', sharedStartDate: '', weeklyReviewDay: 'Sunday', quietStart: '21:00', quietEnd: '06:00', sharedWalkEnabled: true, encouragementEnabled: true });
   const selected = useMemo(() => members.find((member) => member.id === selectedId) ?? members[0], [members, selectedId]);
 
@@ -50,11 +51,18 @@ export default function AdminPage() {
     const response = await fetch('/api/settings', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ member: selected }) });
     flash(response.ok ? `${selected.displayName}’s settings saved` : 'Preview updated — sign in to save');
   };
+  const addMember = async () => {
+    const response = await fetch('/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(newMember) });
+    if (!response.ok) { flash('Could not add member'); return; }
+    const created = await response.json();
+    const member: Member = { ...created, personalStartDate: null, goalWeight: null, stepGoal: created.role === 'teen' ? 8000 : 7000, hydrationGoalOz: null, sleepGoalMinutes: created.role === 'teen' ? 540 : 420, movementMinutes: created.role === 'teen' ? 60 : 20, scriptureMinutes: created.role === 'teen' ? 10 : 20, remindersEnabled: true, showWeightToHousehold: false };
+    setMembers((current) => [...current, member]); setSelectedId(member.id); setAddingMember(false); setNewMember({ displayName: '', inviteEmail: '', role: 'adult' }); flash(`${member.displayName} added`);
+  };
 
   return (
     <main className="admin-shell">
       <aside className="admin-side">
-        <Link className="brand" href="/"><span className="brand-mark">FT</span><span><strong>Faithful</strong><em>Together</em></span></Link>
+        <a className="brand" href="/"><span className="brand-mark">FT</span><span><strong>Faithful</strong><em>Together</em></span></a>
         <div className="admin-label">FAMILY ADMIN</div>
         <nav>
           <button className={tab === 'household' ? 'active' : ''} onClick={() => setTab('household')}><span>⌂</span>Household</button>
@@ -62,7 +70,7 @@ export default function AdminPage() {
           <button className={tab === 'integrations' ? 'active' : ''} onClick={() => setTab('integrations')}><span>⌁</span>Connections</button>
         </nav>
         <div className="admin-note"><span>✦</span><p><strong>Admin principle</strong>Set the family rhythm here. Each person still owns their private goals, reflections, and capacity.</p></div>
-        <Link className="back-link" href="/">← Back to Today</Link>
+        <a className="back-link" href="/">← Back to Today</a>
       </aside>
 
       <section className="admin-main">
@@ -84,9 +92,9 @@ export default function AdminPage() {
         </div>}
 
         {tab === 'people' && <div className="people-layout">
-          <aside className="member-picker"><span>FAMILY MEMBERS</span>{members.map((member) => <button className={member.id === selected.id ? 'active' : ''} key={member.id} onClick={() => setSelectedId(member.id)}><span className={`avatar large ${member.color}`}>{member.displayName[0]}</span><span><strong>{member.displayName}</strong><small>{member.role === 'teen' ? 'Teen journey' : 'Adult journey'}</small></span><b>›</b></button>)}</aside>
+          <aside className="member-picker"><span>FAMILY MEMBERS</span>{members.map((member) => <button className={member.id === selected.id ? 'active' : ''} key={member.id} onClick={() => setSelectedId(member.id)}><span className={`avatar large ${member.color}`}>{member.displayName[0]}</span><span><strong>{member.displayName}</strong><small>{member.role === 'teen' ? 'Teen journey' : 'Adult journey'}</small></span><b>›</b></button>)}<button className="add-member-button" onClick={() => setAddingMember(true)}><span>+</span><span><strong>Add member</strong><small>Create a personal journey</small></span></button></aside>
           <section className="personal-panel"><div className="personal-heading"><div><span className={`avatar xl ${selected.color}`}>{selected.displayName[0]}</span><div><span>PERSONAL SETTINGS</span><h2>{selected.displayName}’s journey</h2></div></div><span className="privacy-pill">Private by default</span></div>
-            <div className="settings-card flat"><h3>Schedule & direction</h3><div className="field-grid three"><label>Display name<input value={selected.displayName} onChange={(e) => updateMember('displayName', e.target.value)} /></label><label>Personal start date<input type="date" value={selected.personalStartDate ?? ''} onChange={(e) => updateMember('personalStartDate', e.target.value)} /></label>{selected.role === 'adult' ? <label>Goal weight (lb)<input type="number" value={selected.goalWeight ?? ''} placeholder="Optional" onChange={(e) => updateMember('goalWeight', e.target.value ? Number(e.target.value) : null)} /></label> : <div className="teen-guardrail"><strong>Teen-safe profile</strong><small>No weight target. Focus stays on strength, energy, sleep, and character.</small></div>}<label>Account email<input type="email" value={selected.inviteEmail ?? ''} placeholder="Used to open their private profile" onChange={(e) => updateMember('inviteEmail', e.target.value)} /></label></div></div>
+            <div className="settings-card flat"><h3>Schedule & direction</h3><div className="field-grid three"><label>Display name<input value={selected.displayName} onChange={(e) => updateMember('displayName', e.target.value)} /></label><label>Life stage<select value={selected.role} onChange={(e) => updateMember('role', e.target.value as 'adult' | 'teen')}><option value="teen">Teen</option><option value="adult">Adult</option></select></label><label>Personal start date<input type="date" value={selected.personalStartDate ?? ''} onChange={(e) => updateMember('personalStartDate', e.target.value)} /></label>{selected.role === 'adult' ? <label>Goal weight (lb)<input type="number" value={selected.goalWeight ?? ''} placeholder="Optional" onChange={(e) => updateMember('goalWeight', e.target.value ? Number(e.target.value) : null)} /></label> : <div className="teen-guardrail"><strong>Teen-safe profile</strong><small>No weight target. Focus stays on strength, energy, sleep, and character.</small></div>}<label>Account email<input type="email" value={selected.inviteEmail ?? ''} placeholder="Used to open their private profile" onChange={(e) => updateMember('inviteEmail', e.target.value)} /></label></div></div>
             <div className="settings-card flat"><h3>Daily targets</h3><div className="target-grid"><label><span>Steps</span><input type="number" value={selected.stepGoal} onChange={(e) => updateMember('stepGoal', Number(e.target.value))} /><small>per day</small></label><label><span>Movement</span><input type="number" value={selected.movementMinutes} onChange={(e) => updateMember('movementMinutes', Number(e.target.value))} /><small>minutes</small></label><label><span>Scripture</span><input type="number" value={selected.scriptureMinutes} onChange={(e) => updateMember('scriptureMinutes', Number(e.target.value))} /><small>minutes</small></label><label><span>Sleep</span><input type="number" value={Math.round(selected.sleepGoalMinutes / 60)} onChange={(e) => updateMember('sleepGoalMinutes', Number(e.target.value) * 60)} /><small>hours</small></label></div></div>
             <div className="settings-card flat"><div className="exercise-head"><div><h3>Exercise changes</h3><p>Personal substitutions automatically follow this person through the program.</p></div><button onClick={() => flash('Exercise editor is next in the build')}>+ Add substitution</button></div><div className="empty-exercise"><span>↔</span><p>No substitutions yet. Replace any movement with a safer or preferred option.</p></div></div>
             <div className="save-bar personal"><label className="mini-switch"><input type="checkbox" checked={Boolean(selected.remindersEnabled)} onChange={(e) => updateMember('remindersEnabled', e.target.checked)} /> Personal reminders</label><button onClick={saveMember}>Save {selected.displayName}’s settings</button></div>
@@ -95,6 +103,7 @@ export default function AdminPage() {
 
         {tab === 'integrations' && <div className="connections-view"><div className="future-banner"><div><span>THE NORTH STAR</span><h2>One calm place to run your life.</h2><p>Your calendar, home, health, faith, tasks, and family rhythm should meet here—without turning your day into a wall of data.</p></div><div className="orb">FT</div></div><div className="integration-grid">{integrations.map((item) => <article key={item.kind}><span className="integration-icon">{item.icon}</span><div><span>{item.status}</span><h3>{item.kind}</h3><p>{item.description}</p></div><button disabled={item.status !== 'Next'}>{item.status === 'Next' ? 'Plan connection' : 'Coming later'}</button></article>)}</div><div className="assistant-roadmap"><h3>How the personal assistant grows</h3><ol><li><b>Now</b><span>Wellness, spiritual formation, household settings, personal goals</span></li><li><b>Next</b><span>Unified calendar, daily agenda, routines, reminders, meal and workout planning</span></li><li><b>Then</b><span>Smart-home scenes, wearable data, tasks, notes, and proactive weekly planning</span></li><li><b>Later</b><span>A conversational assistant that can act—with explicit permission—across each module</span></li></ol></div></div>}
       </section>
+      {addingMember && <div className="member-modal" role="dialog" aria-modal="true" aria-label="Add family member"><div><span className="section-kicker">NEW PERSONAL JOURNEY</span><h2>Add a family member</h2><p>They will receive their own goals, settings, privacy, and daily plan.</p><label>Name<input autoFocus value={newMember.displayName} onChange={(e) => setNewMember({ ...newMember, displayName: e.target.value })} /></label><label>Account email<input type="email" value={newMember.inviteEmail} onChange={(e) => setNewMember({ ...newMember, inviteEmail: e.target.value })} /></label><label>Life stage<select value={newMember.role} onChange={(e) => setNewMember({ ...newMember, role: e.target.value as 'adult' | 'teen' })}><option value="adult">Adult</option><option value="teen">Teen</option></select></label><div className="modal-actions"><button onClick={() => setAddingMember(false)}>Cancel</button><button disabled={!newMember.displayName.trim()} onClick={addMember}>Add member</button></div></div></div>}
     </main>
   );
 }
