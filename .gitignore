@@ -36,3 +36,8 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# nested DigitalOcean PWA build artifacts
+**/node_modules/
+**/dist/
+**/.env*
