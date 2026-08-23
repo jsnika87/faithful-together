@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const households = sqliteTable('households', {
   id: text('id').primaryKey(),
@@ -12,6 +12,7 @@ export const members = sqliteTable('members', {
   id: text('id').primaryKey(),
   householdId: text('household_id').notNull().references(() => households.id, { onDelete: 'cascade' }),
   authUserId: text('auth_user_id'),
+  inviteEmail: text('invite_email'),
   displayName: text('display_name').notNull(),
   role: text('role', { enum: ['adult', 'teen'] }).notNull(),
   color: text('color').notNull(),
@@ -19,6 +20,7 @@ export const members = sqliteTable('members', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 }, (table) => [
   uniqueIndex('idx_members_household_auth').on(table.householdId, table.authUserId),
+  uniqueIndex('idx_members_invite_email').on(table.inviteEmail),
 ]);
 
 export const programTracks = sqliteTable('program_tracks', {
@@ -64,3 +66,51 @@ export const checkins = sqliteTable('checkins', {
   checkedInAt: integer('checked_in_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
 }, (table) => [uniqueIndex('idx_checkins_member_plan').on(table.memberId, table.dailyPlanId)]);
+
+export const householdSettings = sqliteTable('household_settings', {
+  id: text('id').primaryKey(),
+  householdId: text('household_id').notNull().references(() => households.id, { onDelete: 'cascade' }),
+  programName: text('program_name').notNull().default('Faithful Together'),
+  sharedStartDate: text('shared_start_date'),
+  weeklyReviewDay: text('weekly_review_day').notNull().default('Sunday'),
+  familyQuietHoursStart: text('family_quiet_hours_start').notNull().default('21:00'),
+  familyQuietHoursEnd: text('family_quiet_hours_end').notNull().default('06:00'),
+  sharedWalkEnabled: integer('shared_walk_enabled', { mode: 'boolean' }).notNull().default(true),
+  encouragementEnabled: integer('encouragement_enabled', { mode: 'boolean' }).notNull().default(true),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+}, (table) => [uniqueIndex('idx_household_settings_household').on(table.householdId)]);
+
+export const memberSettings = sqliteTable('member_settings', {
+  id: text('id').primaryKey(),
+  memberId: text('member_id').notNull().references(() => members.id, { onDelete: 'cascade' }),
+  personalStartDate: text('personal_start_date'),
+  goalWeight: integer('goal_weight'),
+  stepGoal: integer('step_goal').notNull().default(7000),
+  hydrationGoalOz: integer('hydration_goal_oz'),
+  sleepGoalMinutes: integer('sleep_goal_minutes').notNull().default(420),
+  movementMinutes: integer('movement_minutes').notNull().default(20),
+  scriptureMinutes: integer('scripture_minutes').notNull().default(20),
+  remindersEnabled: integer('reminders_enabled', { mode: 'boolean' }).notNull().default(true),
+  showWeightToHousehold: integer('show_weight_to_household', { mode: 'boolean' }).notNull().default(false),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+}, (table) => [uniqueIndex('idx_member_settings_member').on(table.memberId)]);
+
+export const exerciseSubstitutions = sqliteTable('exercise_substitutions', {
+  id: text('id').primaryKey(),
+  memberId: text('member_id').notNull().references(() => members.id, { onDelete: 'cascade' }),
+  originalExercise: text('original_exercise').notNull(),
+  replacementExercise: text('replacement_exercise').notNull(),
+  reason: text('reason'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+}, (table) => [index('idx_exercise_substitutions_member').on(table.memberId)]);
+
+export const integrations = sqliteTable('integrations', {
+  id: text('id').primaryKey(),
+  householdId: text('household_id').notNull().references(() => households.id, { onDelete: 'cascade' }),
+  kind: text('kind', { enum: ['calendar', 'smart_home', 'wearable', 'tasks'] }).notNull(),
+  provider: text('provider').notNull(),
+  status: text('status', { enum: ['planned', 'connected', 'attention'] }).notNull().default('planned'),
+  displayLabel: text('display_label').notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+}, (table) => [uniqueIndex('idx_integrations_household_kind_provider').on(table.householdId, table.kind, table.provider)]);

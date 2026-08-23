@@ -36,6 +36,8 @@ export default function Home() {
           <a href="#journey"><span>◎</span>Journey</a>
           <a href="#family"><span>♧</span>Family</a>
           <a href="#reflections"><span>▤</span>Reflections</a>
+          <a href="/settings"><span>⚙</span>My settings</a>
+          <a href="/admin"><span>⊕</span>Admin</a>
         </nav>
         <div className="journey-mini">
           <div className="mini-heading"><span>75-day journey</span><b>24%</b></div>
