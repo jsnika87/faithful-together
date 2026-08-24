@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 export default function RestaurantPhraseLibrary({ household, onLogged, supabase, localDateKey }) {
   const [text, setText] = useState('')
@@ -6,6 +6,31 @@ export default function RestaurantPhraseLibrary({ household, onLogged, supabase,
   const [meal, setMeal] = useState('dinner')
   const [visibility, setVisibility] = useState('personal')
   const [msg, setMsg] = useState('')
+  const [library, setLibrary] = useState([])
+
+  async function loadLibrary() {
+    const { data } = await supabase.from('ft_restaurant_items').select('*').eq('household_id', household.id)
+    setLibrary(data || [])
+  }
+  useEffect(() => { loadLibrary() }, [household.id])
+
+  function normalized(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() }
+  const words = normalized(text).split(' ').filter(word => word.length > 2)
+  const suggestions = text.trim() ? library.map(item => {
+    const haystack = normalized(`${item.restaurant_name} ${item.item_name} ${item.search_terms}`)
+    const score = words.filter(word => haystack.includes(word)).length / Math.max(1, words.length)
+    return { ...item, score }
+  }).filter(item => item.score >= .45).sort((a,b) => b.score-a.score).slice(0,3) : []
+
+  function useLibraryItem(item) {
+    const fraction = text.match(/\b(1\/2|½|1\/3|⅓|1\/4|¼|3\/4|¾)\b/)?.[1]
+    const quantities = { '1/2':.5, '½':.5, '1/3':.333, '⅓':.333, '1/4':.25, '¼':.25, '3/4':.75, '¾':.75 }
+    setItems([{ id:`library:${item.id}`, brand:item.restaurant_name, name:item.item_name,
+      serving_label:item.serving_label, quantity:quantities[fraction] || 1, calories:Number(item.calories),
+      protein_g:Number(item.protein_g), carbs_g:Number(item.carbs_g), fat_g:Number(item.fat_g),
+      source:item.source_note, note:'Family-verified restaurant item', saved:true }])
+    setMsg('Using your family-verified item. Adjust the serving if needed.')
+  }
 
   async function calculate() {
     setMsg('Matching the meal…')
@@ -44,9 +69,12 @@ export default function RestaurantPhraseLibrary({ household, onLogged, supabase,
       source_note: item.note || item.source || 'Family verified',
       search_terms: `${restaurant} ${item.name} ${item.input || ''}`.toLowerCase(),
     }
-    const { error } = await supabase.from('ft_restaurant_items').insert(row)
-    setMsg(error ? error.message : `Saved “${item.name}” to the ${visibility === 'household' ? 'family' : 'personal'} library.`)
-    if (!error) setItems(items.map((entry, i) => i === index ? { ...entry, saved: true } : entry))
+    const duplicate = library.find(saved => normalized(saved.restaurant_name) === normalized(restaurant) && normalized(saved.item_name) === normalized(item.name))
+    if (duplicate && !window.confirm('This menu item is already saved. Update the existing entry instead?')) return
+    const request = duplicate ? supabase.from('ft_restaurant_items').update(row).eq('id', duplicate.id) : supabase.from('ft_restaurant_items').insert(row)
+    const { error } = await request
+    setMsg(error ? error.message : duplicate ? `Updated the existing “${item.name}” entry.` : `Saved “${item.name}” to the ${visibility === 'household' ? 'family' : 'personal'} library.`)
+    if (!error) { setItems(items.map((entry, i) => i === index ? { ...entry, saved: true } : entry)); loadLibrary() }
   }
 
   const totals = items.reduce((sum, item) => ({
@@ -75,6 +103,7 @@ export default function RestaurantPhraseLibrary({ household, onLogged, supabase,
     <p className="kicker">DESCRIBE A RESTAURANT MEAL</p><h2>Say what you actually ate</h2>
     <p>Review and correct the matched food. If it is right, save it once and your family can reuse it from the library above.</p>
     <textarea value={text} onChange={e => setText(e.target.value)} placeholder="1/2 of a Bubba's 33 crispy chicken salad with extra ranch"/>
+    {suggestions.length > 0 && <div className="verifiedsuggestions"><strong>Use a family-verified match first</strong>{suggestions.map(item => <button key={item.id} onClick={() => useLibraryItem(item)}><span>{item.restaurant_name ? `${item.restaurant_name} · ` : ''}{item.item_name}</span><small>{item.serving_label} · {item.calories} cal</small></button>)}</div>}
     <div className="phraseactions"><select value={meal} onChange={e => setMeal(e.target.value)}>{['breakfast','lunch','dinner','snack','meal'].map(x => <option key={x}>{x}</option>)}</select><button className="primary" disabled={!text.trim()} onClick={calculate}>Calculate meal</button></div>
     {items.length > 0 && <div className="editable-review"><h3>Review and correct</h3>
       <div className="librarysavechoice"><label>Save corrected items for<select value={visibility} onChange={e => setVisibility(e.target.value)}><option value="personal">Only me</option><option value="household">Whole family</option></select></label></div>

@@ -13,11 +13,23 @@ export default function RestaurantLibrary({ household, onLogged, supabase, local
   const [meal, setMeal] = useState('dinner')
   const [quantity, setQuantity] = useState(1)
   const [msg, setMsg] = useState('')
+  const [userId, setUserId] = useState('')
+  const [ownerNames, setOwnerNames] = useState({})
+  const [isAdmin, setIsAdmin] = useState(false)
 
   async function load() {
+    const { data: { user } } = await supabase.auth.getUser()
+    setUserId(user.id)
+    const { data: membership } = await supabase.from('ft_household_members').select('role').eq('household_id', household.id).eq('user_id', user.id).single()
+    setIsAdmin(membership?.role === 'admin')
     const { data } = await supabase.from('ft_restaurant_items').select('*')
       .eq('household_id', household.id).order('updated_at', { ascending: false })
     setItems(data || [])
+    const ids = [...new Set((data || []).map(item => item.owner_user_id))]
+    if (ids.length) {
+      const { data: profiles } = await supabase.from('ft_profiles').select('id,display_name').in('id', ids)
+      setOwnerNames(Object.fromEntries((profiles || []).map(profile => [profile.id, profile.display_name])))
+    }
   }
   useEffect(() => { load() }, [household.id])
 
@@ -31,12 +43,17 @@ export default function RestaurantLibrary({ household, onLogged, supabase, local
       search_terms: `${form.restaurant_name} ${form.item_name}`.toLowerCase(),
       updated_at: new Date().toISOString(),
     }
-    const request = editing
-      ? supabase.from('ft_restaurant_items').update(row).eq('id', editing)
+    const duplicate = !editing && items.find(item =>
+      item.restaurant_name.trim().toLowerCase() === form.restaurant_name.trim().toLowerCase()
+      && item.item_name.trim().toLowerCase() === form.item_name.trim().toLowerCase())
+    if (duplicate && !window.confirm('This menu item is already saved. Update the existing entry instead?')) return
+    const targetId = editing || duplicate?.id
+    const request = targetId
+      ? supabase.from('ft_restaurant_items').update(row).eq('id', targetId)
       : supabase.from('ft_restaurant_items').insert(row)
     const { error } = await request
-    setMsg(error ? error.message : editing ? 'Library item updated.' : 'Saved to restaurant library.')
-    if (!error) { setForm(blank); setEditing(null); load() }
+    setMsg(error ? error.message : targetId ? 'Existing library item updated.' : 'Saved to restaurant library.')
+    if (!error) { setForm(blank); setEditing(null); load(); onLogged() }
   }
 
   function edit(item) {
@@ -47,7 +64,7 @@ export default function RestaurantLibrary({ household, onLogged, supabase, local
     if (!window.confirm('Delete this saved restaurant item?')) return
     const { error } = await supabase.from('ft_restaurant_items').delete().eq('id', id)
     setMsg(error ? error.message : 'Saved item deleted.')
-    if (!error) load()
+    if (!error) { load(); onLogged() }
   }
   async function log(item) {
     const { data: { user } } = await supabase.auth.getUser()
@@ -81,7 +98,7 @@ export default function RestaurantLibrary({ household, onLogged, supabase, local
     </details>
     {items.length>0&&<div className="librarylist">
       <div className="libraryquick"><label>Meal<select value={meal} onChange={e=>setMeal(e.target.value)}>{['breakfast','lunch','dinner','snack','meal'].map(x=><option key={x}>{x}</option>)}</select></label><label>Servings<input type="number" min=".1" step=".25" value={quantity} onChange={e=>setQuantity(e.target.value)}/></label></div>
-      {items.map(item=><article key={item.id}><div><strong>{item.restaurant_name?`${item.restaurant_name} · `:''}{item.item_name}</strong><small>{item.serving_label} · {item.calories} cal · {item.protein_g}g protein · {item.carbs_g}g carbs · {item.fat_g}g fat</small><em>{item.visibility==='household'?'Shared with family':'Personal'} · {item.source_note}</em></div><div><button className="primary" onClick={()=>log(item)}>Log</button><button onClick={()=>edit(item)}>Edit</button><button onClick={()=>remove(item.id)}>Delete</button></div></article>)}
+      {items.map(item=><article key={item.id}><div><strong>{item.restaurant_name?`${item.restaurant_name} · `:''}{item.item_name}</strong><small>{item.serving_label} · {item.calories} cal · {item.protein_g}g protein · {item.carbs_g}g carbs · {item.fat_g}g fat</small><em>{item.visibility==='household'?'Shared with family':'Personal'} · Verified by {item.owner_user_id===userId?'you':ownerNames[item.owner_user_id]||'a family member'} · {new Date(item.updated_at).toLocaleDateString()}</em><em>{item.source_note}</em></div><div><button className="primary" onClick={()=>log(item)}>Log</button>{(item.owner_user_id===userId||isAdmin)&&<><button onClick={()=>edit(item)}>Edit</button><button onClick={()=>remove(item.id)}>Delete</button></>}</div></article>)}
     </div>}
     {msg&&<p className="message status">{msg}</p>}
   </section></div>
