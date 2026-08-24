@@ -29,6 +29,7 @@ import './nutrition.css';
 import './responsive-hardening.css';
 import './barcode.css';
 import './adaptive-coach.css';
+import './health-sync.css';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 const goals = [{k:'step_goal',label:'Steps',value:8000},{k:'movement_goal_minutes',label:'Movement',value:30},{k:'scripture_goal_minutes',label:'Scripture',value:20},{k:'sleep_goal_minutes',label:'Sleep',value:420}];
@@ -204,4 +205,16 @@ function WeeklyCoach({household}){
 }
 function CoachedProgress(props){return <><WeeklyCoach household={props.household}/><ProgressBeforeCoach/></>}
 ProgressHistory=CoachedProgress;
+const SettingsBeforeHealthSync=Settings;
+function HealthStepSync(){
+  const[state,setState]=useState({connected:false,last_used_at:null}),[setup,setSetup]=useState(null),[msg,setMsg]=useState('');
+  async function call(action){const{data:{session}}=await supabase.auth.getSession();return fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ft-health-steps`,{method:'POST',headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({action})}).then(r=>r.json())}
+  async function load(){const x=await call('status');if(!x.error)setState(x)}
+  useEffect(()=>{load()},[]);
+  async function create(){setMsg('Creating private connection…');const x=await call('create');if(x.error)setMsg(x.error);else{setSetup(x);setState({connected:true,last_used_at:null});setMsg('Connection created. Keep this page open while we build the Shortcut.')}}
+  async function revoke(){if(!window.confirm('Disconnect Apple Health step imports? Your existing step history will remain.'))return;const x=await call('revoke');setSetup(null);setState({connected:false,last_used_at:null});setMsg(x.error||'Apple Health step import disconnected.')}
+  return <div className="page healthsync"><section className="panel"><p className="kicker">APPLE HEALTH STEPS</p><h2>Bring daily steps into Faithful Together</h2><p>Pedometer++ and Apple Watch steps flow through Apple Health. An iPhone Shortcut can securely update your private daily check-in.</p><p className={`healthstatus ${state.connected?'on':''}`}>● {state.connected?'Connection ready':'Not connected'}</p>{state.last_used_at&&<p className="synclast">Last synced {new Date(state.last_used_at).toLocaleString()}</p>}<div className="healthactions">{!state.connected&&<button className="primary" onClick={create}>Create my connection</button>}{state.connected&&!setup&&<button onClick={create}>Replace connection code</button>}{state.connected&&<button onClick={revoke}>Disconnect</button>}</div>{setup&&<div className="syncsecret"><strong>One-time connection code</strong><code>{setup.connection_code}</code><p>This code is shown only now. Do not share it; it can update your step count.</p><strong>Shortcut web address</strong><code>{setup.import_url}</code></div>}<ol className="shortcutsteps"><li>Create the connection here.</li><li>We’ll add a Shortcut that reads today’s Apple Health step total.</li><li>The Shortcut sends only the date and step count to your account.</li></ol>{msg&&<p className="message status">{msg}</p>}</section></div>
+}
+function SettingsWithHealthSync(props){return <><SettingsBeforeHealthSync {...props}/><HealthStepSync/></>}
+Settings=SettingsWithHealthSync;
 createRoot(document.getElementById('root')).render(<App/>);
