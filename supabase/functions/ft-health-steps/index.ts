@@ -6,6 +6,7 @@ async function hash(value:string){return hex(new Uint8Array(await crypto.subtle.
 function dateKey(value:Date){return`${value.getUTCFullYear()}-${String(value.getUTCMonth()+1).padStart(2,'0')}-${String(value.getUTCDate()).padStart(2,'0')}`}
 type StepSample={source?:unknown,start?:unknown,end?:unknown,steps?:unknown,value?:unknown,id?:unknown};
 function mergeSamples(input:unknown){
+  if(typeof input==='string'){try{input=JSON.parse(input)}catch{throw new Error('The Health sample list was not valid JSON')}}
   if(!Array.isArray(input)||!input.length||input.length>5000)throw new Error('Provide between 1 and 5,000 Health samples');
   const bucketMs=5*60*1000,buckets=new Map<number,{watch:number,phone:number}>(),seen=new Set<string>();
   let watchSteps=0,phoneSteps=0,accepted=0;
