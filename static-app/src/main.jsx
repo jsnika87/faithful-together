@@ -50,6 +50,8 @@ import ProgressVisuals from './progress-visuals.jsx';
 import './progress-visuals.css';
 import NaturalActions from './natural-actions.jsx';
 import './natural-actions.css';
+import VoiceCommand from './voice-command.jsx';
+import './voice-command.css';
 import './barcode.css';
 import './adaptive-coach.css';
 import './health-sync.css';
@@ -290,7 +292,7 @@ function TodayWithQuickWater(props){return <><TodayQuickWater supabase={supabase
 Today=TodayWithQuickWater;
 
 const TodayBeforeCommandCenter=Today;
-function TodayWithCommandCenter(props){return <><TodayCommandCenter supabase={supabase} localDateKey={localDateKey}/><NaturalActions supabase={supabase} localDateKey={localDateKey}/><AdaptiveGuidance supabase={supabase} localDateKey={localDateKey}/><DayRhythm supabase={supabase} localDateKey={localDateKey}/><TodayBeforeCommandCenter {...props}/></>}
+function TodayWithCommandCenter(props){return <><TodayCommandCenter supabase={supabase} localDateKey={localDateKey}/><VoiceCommand/><NaturalActions supabase={supabase} localDateKey={localDateKey}/><AdaptiveGuidance supabase={supabase} localDateKey={localDateKey}/><DayRhythm supabase={supabase} localDateKey={localDateKey}/><TodayBeforeCommandCenter {...props}/></>}
 Today=TodayWithCommandCenter;
 
 const SettingsBeforeNutritionGoals=Settings;
