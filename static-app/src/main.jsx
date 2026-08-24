@@ -82,6 +82,7 @@ import {WeeklyScripture,DailyReflection,ReflectionHistory} from './spiritual-not
 import './spiritual-notebook.css';
 import DailyCheckinSections from './daily-checkin-sections.jsx';
 import './daily-checkin-sections.css';
+import './water-source.css';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 const goals = [{k:'step_goal',label:'Steps',value:8000},{k:'movement_goal_minutes',label:'Movement',value:30},{k:'scripture_goal_minutes',label:'Scripture',value:20},{k:'sleep_goal_minutes',label:'Sleep',value:420}];
