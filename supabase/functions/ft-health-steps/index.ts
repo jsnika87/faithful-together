@@ -12,23 +12,11 @@ Deno.serve(async req=>{
   if(body.action==='import'){
     const token=(req.headers.get('x-ft-sync-key')||'').trim();
     if(!token)return json({error:'Connection code required'},401);
-    const{data:key}=await sb.from('ft_health_import_tokens').select('*').eq('token_hash',await hash(token)).eq('active',true).maybeSingle();
-    if(!key)return json({error:'Connection code is invalid or revoked'},401);
     const steps=Math.round(Number(body.steps)),loggedOn=String(body.date||dateKey(new Date()));
     if(!Number.isFinite(steps)||steps<0||steps>100000||!/^\d{4}-\d{2}-\d{2}$/.test(loggedOn))return json({error:'Valid steps and date required'},400);
-    const[{data:settings},{data:existing}]=await Promise.all([
-      sb.from('ft_member_settings').select('personal_start_date,program_cycle').eq('household_id',key.household_id).eq('user_id',key.user_id).single(),
-      sb.from('ft_daily_checkins').select('*').eq('household_id',key.household_id).eq('user_id',key.user_id).order('program_cycle',{ascending:false})
-    ]);
-    const start=settings?.personal_start_date?new Date(`${settings.personal_start_date}T00:00:00Z`):new Date(`${loggedOn}T00:00:00Z`),target=new Date(`${loggedOn}T00:00:00Z`);
-    const programDay=Math.max(1,Math.min(75,Math.floor((target.getTime()-start.getTime())/86400000)+1)),cycle=settings?.program_cycle||1;
-    const current=(existing||[]).find((x:any)=>x.program_cycle===cycle&&x.program_day===programDay)||{};
-    const row={...current,household_id:key.household_id,user_id:key.user_id,program_cycle:cycle,program_day:programDay,steps,steps_source:'apple_health',steps_synced_at:new Date().toISOString(),updated_at:new Date().toISOString()};
-    delete row.created_at;
-    const{error}=await sb.from('ft_daily_checkins').upsert(row,{onConflict:'household_id,user_id,program_cycle,program_day'});
-    if(error)return json({error:error.message},400);
-    await sb.from('ft_health_import_tokens').update({last_used_at:new Date().toISOString()}).eq('id',key.id);
-    return json({saved:true,steps,date:loggedOn,program_day:programDay});
+    const{data,error}=await sb.rpc('ft_import_health_steps',{supplied_token_hash:await hash(token),supplied_steps:steps,supplied_date:loggedOn});
+    if(error)return json({error:error.message},error.message.includes('invalid or revoked')?401:400);
+    return json(data);
   }
   const jwt=(req.headers.get('Authorization')||'').replace('Bearer ','');
   const{data:{user}}=await sb.auth.getUser(jwt);if(!user)return json({error:'Sign in required'},401);
