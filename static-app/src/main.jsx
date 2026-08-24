@@ -38,6 +38,9 @@ import './weekly-dashboard.css';
 import TodayQuickWater from './today-quick-water.jsx';
 import NutritionGoalSettings from './settings-nutrition.jsx';
 import './quick-water.css';
+import TodayCommandCenter from './today-command-center.jsx';
+import UniversalQuickAdd from './universal-quick-add.jsx';
+import './command-center.css';
 import './barcode.css';
 import './adaptive-coach.css';
 import './health-sync.css';
@@ -277,8 +280,14 @@ const TodayBeforeQuickWater=Today;
 function TodayWithQuickWater(props){return <><TodayQuickWater supabase={supabase} localDateKey={localDateKey}/><TodayBeforeQuickWater {...props}/></>}
 Today=TodayWithQuickWater;
 
+const TodayBeforeCommandCenter=Today;
+function TodayWithCommandCenter(props){return <><TodayCommandCenter supabase={supabase} localDateKey={localDateKey}/><TodayBeforeCommandCenter {...props}/></>}
+Today=TodayWithCommandCenter;
+
 const SettingsBeforeNutritionGoals=Settings;
 function SettingsWithNutritionGoals(props){return <><SettingsBeforeNutritionGoals {...props}/><NutritionGoalSettings household={props.household} session={props.session} supabase={supabase}/></>}
 Settings=SettingsWithNutritionGoals;
 
-createRoot(document.getElementById('root')).render(<App/>);
+function UniversalQuickAddLoader(){const[household,setHousehold]=useState(null);useEffect(()=>{supabase.auth.getSession().then(({data})=>{if(data.session)supabase.from('ft_households').select('id').limit(1).maybeSingle().then(({data:h})=>setHousehold(h))})},[]);return household?<UniversalQuickAdd household={household} supabase={supabase} localDateKey={localDateKey}/>:null}
+
+createRoot(document.getElementById('root')).render(<><App/><UniversalQuickAddLoader/></>);
