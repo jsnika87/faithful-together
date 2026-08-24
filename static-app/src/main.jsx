@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createClient } from '@supabase/supabase-js';
-import { BrowserMultiFormatReader } from '@zxing/browser';
 import './style.css';
 import './family.css';
 import './journey.css';
@@ -75,6 +74,8 @@ import './adaptive-coach.css';
 import './health-sync.css';
 import './themes.css';
 import './calm-layout.css';
+import AdminHealth from './admin-health.jsx';
+import './admin-health.css';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 const goals = [{k:'step_goal',label:'Steps',value:8000},{k:'movement_goal_minutes',label:'Movement',value:30},{k:'scripture_goal_minutes',label:'Scripture',value:20},{k:'sleep_goal_minutes',label:'Sleep',value:420}];
@@ -203,8 +204,9 @@ function BarcodeScanner({household,onLogged}){
     if(!scanning)return;
     let cancelled=false;
     found.current=false;
-    const reader=new BrowserMultiFormatReader();
+    let reader;
     (async()=>{try{
+      const{BrowserMultiFormatReader}=await import('@zxing/browser');reader=new BrowserMultiFormatReader();
       controls.current=await reader.decodeFromConstraints({video:{facingMode:{ideal:'environment'}}},video.current,(result)=>{
         if(result&&!found.current){found.current=true;lookup(result.getText())}
       });
@@ -333,7 +335,7 @@ function FamilyWithCoordination(props){const[tab,setTab]=useState('today');retur
 Family=FamilyWithCoordination;
 
 function PendingInvitations({household}){const[rows,setRows]=useState([]),[msg,setMsg]=useState('');async function load(){const{data}=await supabase.from('ft_household_invitations').select('*').eq('household_id',household.id).is('accepted_at',null).order('created_at');setRows(data||[])}useEffect(()=>{load()},[household.id]);async function renew(id){const{error}=await supabase.from('ft_household_invitations').update({expires_at:new Date(Date.now()+14*86400000).toISOString()}).eq('id',id);setMsg(error?error.message:'Invitation renewed for 14 days.');if(!error)load()}async function cancel(id){if(!window.confirm('Cancel this invitation?'))return;const{error}=await supabase.from('ft_household_invitations').delete().eq('id',id);setMsg(error?error.message:'Invitation cancelled.');if(!error)load()}return <div className="page adminextra"><section className="panel"><p className="kicker">INVITATIONS</p><h2>Pending family invitations</h2>{rows.length?rows.map(i=><div className="inviterow" key={i.id}><div><strong>{i.email}</strong><small>{i.life_stage} · expires {new Date(i.expires_at).toLocaleDateString()}</small></div><div><button onClick={()=>renew(i.id)}>Renew</button><button className="cancel" onClick={()=>cancel(i.id)}>Cancel</button></div></div>):<p>No pending invitations.</p>}{msg&&<p className="message status">{msg}</p>}</section></div>}
-function CalmAdminHub(props){const[tab,setTab]=useState('household');return <div className="calmhub adminhub"><nav className="hubtabs"><button className={tab==='household'?'active':''} onClick={()=>setTab('household')}>Household</button><button className={tab==='roles'?'active':''} onClick={()=>setTab('roles')}>Admin access</button><button className={tab==='invites'?'active':''} onClick={()=>setTab('invites')}>Invitations</button><button className={tab==='home'?'active':''} onClick={()=>setTab('home')}>Smart home</button></nav>{tab==='household'?<BaseAdmin {...props}/>:tab==='roles'?<RoleManager household={props.household}/>:tab==='invites'?<PendingInvitations household={props.household}/>:<DeviceAdmin/>}</div>}
+function CalmAdminHub(props){const[tab,setTab]=useState('household');return <div className="calmhub adminhub"><nav className="hubtabs"><button className={tab==='household'?'active':''} onClick={()=>setTab('household')}>Household</button><button className={tab==='roles'?'active':''} onClick={()=>setTab('roles')}>Admin access</button><button className={tab==='invites'?'active':''} onClick={()=>setTab('invites')}>Invitations</button><button className={tab==='home'?'active':''} onClick={()=>setTab('home')}>Smart home</button><button className={tab==='health'?'active':''} onClick={()=>setTab('health')}>System health</button></nav>{tab==='household'?<BaseAdmin {...props}/>:tab==='roles'?<RoleManager household={props.household}/>:tab==='invites'?<PendingInvitations household={props.household}/>:tab==='home'?<DeviceAdmin/>:<AdminHealth household={props.household} supabase={supabase}/>}</div>}
 Admin=CalmAdminHub;
 
 function UniversalQuickAddLoader(){const[household,setHousehold]=useState(null);useEffect(()=>{supabase.auth.getSession().then(({data})=>{if(data.session)supabase.from('ft_households').select('id').limit(1).maybeSingle().then(({data:h})=>setHousehold(h))})},[]);return household?<UniversalQuickAdd household={household} supabase={supabase} localDateKey={localDateKey}/>:null}
