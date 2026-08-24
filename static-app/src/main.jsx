@@ -80,6 +80,8 @@ import HelpCenter from './help-center.jsx';
 import './help-center.css';
 import {WeeklyScripture,DailyReflection,ReflectionHistory} from './spiritual-notebook.jsx';
 import './spiritual-notebook.css';
+import DailyCheckinSections from './daily-checkin-sections.jsx';
+import './daily-checkin-sections.css';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 const goals = [{k:'step_goal',label:'Steps',value:8000},{k:'movement_goal_minutes',label:'Movement',value:30},{k:'scripture_goal_minutes',label:'Scripture',value:20},{k:'sleep_goal_minutes',label:'Sleep',value:420}];
@@ -319,7 +321,7 @@ function TodayWithQuickWater(props){return <><TodayQuickWater supabase={supabase
 Today=TodayWithQuickWater;
 
 const TodayBeforeCommandCenter=Today;
-function TodayWithCommandCenter(props){const[tab,setTab]=useState('overview');return <div className="calmhub todayhub"><nav className="hubtabs"><button className={tab==='overview'?'active':''} onClick={()=>setTab('overview')}>Overview</button><button className={tab==='plan'?'active':''} onClick={()=>setTab('plan')}>My plan</button><button className={tab==='review'?'active':''} onClick={()=>setTab('review')}>Evening review</button></nav>{tab==='overview'?<><WeeklyScripture household={props.household} supabase={supabase} getContext={personalProgramContext} programs={programs}/><LifeAssistant household={props.household} supabase={supabase} localDateKey={localDateKey}/><TodayCommandCenter supabase={supabase} localDateKey={localDateKey}/><VoiceCommand/><NaturalActions supabase={supabase} localDateKey={localDateKey}/></>:tab==='plan'?<><AdaptiveGuidance supabase={supabase} localDateKey={localDateKey}/><DailyReflection household={props.household} supabase={supabase} getContext={personalProgramContext} programs={programs}/><TodayBeforeCommandCenter {...props}/></>:<DayRhythm supabase={supabase} localDateKey={localDateKey}/>}</div>}
+function TodayWithCommandCenter(props){const[tab,setTab]=useState('overview');return <div className="calmhub todayhub"><nav className="hubtabs"><button className={tab==='overview'?'active':''} onClick={()=>setTab('overview')}>Overview</button><button className={tab==='plan'?'active':''} onClick={()=>setTab('plan')}>My plan</button><button className={tab==='review'?'active':''} onClick={()=>setTab('review')}>Daily check-ins</button></nav>{tab==='overview'?<><WeeklyScripture household={props.household} supabase={supabase} getContext={personalProgramContext} programs={programs}/><LifeAssistant household={props.household} supabase={supabase} localDateKey={localDateKey}/><TodayCommandCenter supabase={supabase} localDateKey={localDateKey}/><VoiceCommand/><NaturalActions supabase={supabase} localDateKey={localDateKey}/></>:tab==='plan'?<><AdaptiveGuidance supabase={supabase} localDateKey={localDateKey}/><DailyReflection household={props.household} supabase={supabase} getContext={personalProgramContext} programs={programs}/><div className="guidedday"><TodayBeforeCommandCenter {...props}/></div></>:<><DailyCheckinSections household={props.household} supabase={supabase} getContext={personalProgramContext}/><DayRhythm supabase={supabase} localDateKey={localDateKey}/></>}</div>}
 Today=TodayWithCommandCenter;
 
 const SettingsBeforeNutritionGoals=Settings;
