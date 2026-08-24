@@ -58,6 +58,8 @@ import VoiceCommand from './voice-command.jsx';
 import './voice-command.css';
 import FamilyCoordination from './family-coordination.jsx';
 import './family-coordination.css';
+import RoutineManager,{RoutineRunner} from './routine-manager.jsx';
+import './routine-manager.css';
 import FamilyOperations from './family-operations.jsx';
 import './family-operations.css';
 import LifeAssistant from './life-assistant.jsx';
@@ -173,7 +175,7 @@ function TimeAwareToday(props){useEffect(()=>{const root=document.querySelector(
 Today=TimeAwareToday;
 function TaskManagement({household}){const[tasks,setTasks]=useState([]);const[msg,setMsg]=useState('');async function load(){const{data}=await supabase.from('ft_tasks').select('*').eq('household_id',household.id).eq('status','open').order('due_date');setTasks(data||[])}useEffect(()=>{load()},[household.id]);async function stop(t){const{error}=await supabase.from('ft_tasks').update({recurrence:'none',updated_at:new Date().toISOString()}).eq('id',t.id);setMsg(error?error.message:'Repeating stopped. This task remains on the Planner.');if(!error)load()}async function remove(t){if(!window.confirm(`Delete “${t.title}”? Completed history will not be removed.`))return;const{error}=await supabase.from('ft_tasks').delete().eq('id',t.id);setMsg(error?error.message:'Task deleted.');if(!error)load()}if(!tasks.length)return null;return <div className="page taskmanage"><section className="panel"><p className="kicker">MANAGE TASKS</p><h2>Change or remove open tasks</h2>{tasks.map(t=><div className="memberrow" key={t.id}><div><strong>{t.title}</strong><small>{t.recurrence==='none'?'Does not repeat':`Repeats ${t.recurrence}`}</small></div><div>{t.recurrence!=='none'&&<button onClick={()=>stop(t)}>Stop repeating</button>}<button className="delete" onClick={()=>remove(t)}>Delete</button></div></div>)}{msg&&<p className="message status">{msg}</p>}</section></div>}
 const PlannerBeforeManagement=Planner;
-function ManagedPlanner(props){const[tab,setTab]=useState('plan');return <div className="calmhub plannerhub"><nav className="hubtabs"><button className={tab==='plan'?'active':''} onClick={()=>setTab('plan')}>Plan</button><button className={tab==='manage'?'active':''} onClick={()=>setTab('manage')}>Manage tasks</button></nav>{tab==='plan'?<PlannerBeforeManagement {...props}/>:<TaskManagement household={props.household}/>}</div>}
+function ManagedPlanner(props){const[tab,setTab]=useState('plan');return <div className="calmhub plannerhub"><nav className="hubtabs"><button className={tab==='plan'?'active':''} onClick={()=>setTab('plan')}>Plan</button><button className={tab==='routines'?'active':''} onClick={()=>setTab('routines')}>Routines</button><button className={tab==='manage'?'active':''} onClick={()=>setTab('manage')}>Manage tasks</button></nav>{tab==='plan'?<PlannerBeforeManagement {...props}/>:tab==='routines'?<RoutineManager household={props.household} supabase={supabase} localDateKey={localDateKey}/>:<TaskManagement household={props.household}/>}</div>}
 Planner=ManagedPlanner;
 async function personalProgramContext(){const{data:{user}}=await supabase.auth.getUser();const[{data:p},{data:m},{data:s}]=await Promise.all([supabase.from('ft_profiles').select('*').eq('id',user.id).single(),supabase.from('ft_household_members').select('*').eq('user_id',user.id).limit(1).single(),supabase.from('ft_member_settings').select('*').eq('user_id',user.id).limit(1).single()]);const track=memberTrack(p,m.life_stage);const start=s.personal_start_date?new Date(`${s.personal_start_date}T00:00:00`):new Date();const day=Math.max(1,Math.min(75,Math.floor((new Date().setHours(0,0,0,0)-start.setHours(0,0,0,0))/86400000)+1));return{track,day}}
 const JourneyBeforePersonalization=Journey;
@@ -336,4 +338,4 @@ function UniversalQuickAddLoader(){const[household,setHousehold]=useState(null);
 
 function EliteFoundationLoader(){const[household,setHousehold]=useState(null);useEffect(()=>{supabase.auth.getSession().then(({data})=>{if(data.session)supabase.from('ft_households').select('id').limit(1).maybeSingle().then(({data:h})=>setHousehold(h))})},[]);return household?<><ConnectionBanner/><AppHealthReporter household={household} supabase={supabase}/></>:null}
 
-createRoot(document.getElementById('root')).render(<><App/><UniversalQuickAddLoader/><EliteFoundationLoader/></>);
+createRoot(document.getElementById('root')).render(<><App/><RoutineRunner supabase={supabase} localDateKey={localDateKey}/><UniversalQuickAddLoader/><EliteFoundationLoader/></>);
