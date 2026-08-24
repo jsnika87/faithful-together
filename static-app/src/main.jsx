@@ -35,6 +35,9 @@ import RestaurantPhraseLibrary from './restaurant-phrase-library.jsx';
 import FoodLogEditor from './food-log-editor.jsx';
 import WeeklyDashboard from './weekly-dashboard.jsx';
 import './weekly-dashboard.css';
+import TodayQuickWater from './today-quick-water.jsx';
+import NutritionGoalSettings from './settings-nutrition.jsx';
+import './quick-water.css';
 import './barcode.css';
 import './adaptive-coach.css';
 import './health-sync.css';
@@ -269,5 +272,13 @@ function NWSWeather(){const[weather,setWeather]=useState(null),[msg,setMsg]=useS
 const HomeOverviewWithoutWeather=HomeHub;
 function WeatherHomeOverview(){return <><NWSWeather/><HomeOverviewWithoutWeather/></>}
 HomeHub=WeatherHomeOverview;
+
+const TodayBeforeQuickWater=Today;
+function TodayWithQuickWater(props){return <><TodayQuickWater supabase={supabase} localDateKey={localDateKey}/><TodayBeforeQuickWater {...props}/></>}
+Today=TodayWithQuickWater;
+
+const SettingsBeforeNutritionGoals=Settings;
+function SettingsWithNutritionGoals(props){return <><SettingsBeforeNutritionGoals {...props}/><NutritionGoalSettings household={props.household} session={props.session} supabase={supabase}/></>}
+Settings=SettingsWithNutritionGoals;
 
 createRoot(document.getElementById('root')).render(<App/>);
