@@ -52,6 +52,8 @@ import NaturalActions from './natural-actions.jsx';
 import './natural-actions.css';
 import VoiceCommand from './voice-command.jsx';
 import './voice-command.css';
+import FamilyCoordination from './family-coordination.jsx';
+import './family-coordination.css';
 import './barcode.css';
 import './adaptive-coach.css';
 import './health-sync.css';
@@ -302,6 +304,10 @@ Settings=SettingsWithNutritionGoals;
 const SettingsBeforeSmartNudges=Settings;
 function SettingsWithSmartNudges(props){return <><SettingsBeforeSmartNudges {...props}/><SmartNudgeSettings household={props.household} session={props.session} supabase={supabase}/></>}
 Settings=SettingsWithSmartNudges;
+
+const FamilyBeforeCoordination=Family;
+function FamilyWithCoordination(props){return <><FamilyBeforeCoordination {...props}/><FamilyCoordination household={props.household} supabase={supabase} localDateKey={localDateKey}/></>}
+Family=FamilyWithCoordination;
 
 function UniversalQuickAddLoader(){const[household,setHousehold]=useState(null);useEffect(()=>{supabase.auth.getSession().then(({data})=>{if(data.session)supabase.from('ft_households').select('id').limit(1).maybeSingle().then(({data:h})=>setHousehold(h))})},[]);return household?<UniversalQuickAdd household={household} supabase={supabase} localDateKey={localDateKey}/>:null}
 
