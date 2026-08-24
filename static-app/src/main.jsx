@@ -67,6 +67,8 @@ import './life-assistant.css';
 import AccountReliability from './account-reliability.jsx';
 import {ConnectionBanner,AppHealthReporter} from './app-health.jsx';
 import './elite-foundation.css';
+import AppExperience,{UpdateNotifier} from './app-experience.jsx';
+import './app-experience.css';
 import './account-reliability.css';
 import './barcode.css';
 import './adaptive-coach.css';
@@ -323,7 +325,7 @@ function SettingsWithSmartNudges(props){return <><SettingsBeforeSmartNudges {...
 Settings=SettingsWithSmartNudges;
 
 const SettingsBeforeReliability=Settings;
-function SettingsWithReliability(props){const[tab,setTab]=useState('personal');return <div className="calmhub settingshub"><nav className="hubtabs"><button className={tab==='personal'?'active':''} onClick={()=>setTab('personal')}>Personal</button><button className={tab==='nutrition'?'active':''} onClick={()=>setTab('nutrition')}>Nutrition</button><button className={tab==='notifications'?'active':''} onClick={()=>setTab('notifications')}>Notifications</button><button className={tab==='connections'?'active':''} onClick={()=>setTab('connections')}>Connections</button><button className={tab==='privacy'?'active':''} onClick={()=>setTab('privacy')}>Privacy &amp; security</button></nav>{tab==='personal'?<ProfileSettings {...props}/>:tab==='nutrition'?<NutritionGoalSettings household={props.household} session={props.session} supabase={supabase}/>:tab==='notifications'?<><ReminderPreferences household={props.household} session={props.session}/><SmartNudgeSettings household={props.household} session={props.session} supabase={supabase}/></>:tab==='connections'?<><CalendarPreferences/><HealthStepSync/></>:<><PrivacySettings household={props.household} session={props.session}/><PasswordSettings/><AccountReliability household={props.household} supabase={supabase}/></>}</div>}
+function SettingsWithReliability(props){const[tab,setTab]=useState('personal');return <div className="calmhub settingshub"><nav className="hubtabs"><button className={tab==='personal'?'active':''} onClick={()=>setTab('personal')}>Personal</button><button className={tab==='nutrition'?'active':''} onClick={()=>setTab('nutrition')}>Nutrition</button><button className={tab==='notifications'?'active':''} onClick={()=>setTab('notifications')}>Notifications</button><button className={tab==='connections'?'active':''} onClick={()=>setTab('connections')}>Connections</button><button className={tab==='experience'?'active':''} onClick={()=>setTab('experience')}>App experience</button><button className={tab==='privacy'?'active':''} onClick={()=>setTab('privacy')}>Privacy &amp; security</button></nav>{tab==='personal'?<ProfileSettings {...props}/>:tab==='nutrition'?<NutritionGoalSettings household={props.household} session={props.session} supabase={supabase}/>:tab==='notifications'?<><ReminderPreferences household={props.household} session={props.session}/><SmartNudgeSettings household={props.household} session={props.session} supabase={supabase}/></>:tab==='connections'?<><CalendarPreferences/><HealthStepSync/></>:tab==='experience'?<AppExperience/>:<><PrivacySettings household={props.household} session={props.session}/><PasswordSettings/><AccountReliability household={props.household} supabase={supabase}/></>}</div>}
 Settings=SettingsWithReliability;
 
 const FamilyBeforeCoordination=Family;
@@ -338,4 +340,4 @@ function UniversalQuickAddLoader(){const[household,setHousehold]=useState(null);
 
 function EliteFoundationLoader(){const[household,setHousehold]=useState(null);useEffect(()=>{supabase.auth.getSession().then(({data})=>{if(data.session)supabase.from('ft_households').select('id').limit(1).maybeSingle().then(({data:h})=>setHousehold(h))})},[]);return household?<><ConnectionBanner/><AppHealthReporter household={household} supabase={supabase}/></>:null}
 
-createRoot(document.getElementById('root')).render(<><App/><RoutineRunner supabase={supabase} localDateKey={localDateKey}/><UniversalQuickAddLoader/><EliteFoundationLoader/></>);
+createRoot(document.getElementById('root')).render(<><App/><UpdateNotifier/><RoutineRunner supabase={supabase} localDateKey={localDateKey}/><UniversalQuickAddLoader/><EliteFoundationLoader/></>);
