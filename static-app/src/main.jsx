@@ -33,6 +33,8 @@ import './home-overview.css';
 import RestaurantLibrary from './restaurant-library.jsx';
 import RestaurantPhraseLibrary from './restaurant-phrase-library.jsx';
 import FoodLogEditor from './food-log-editor.jsx';
+import WeeklyDashboard from './weekly-dashboard.jsx';
+import './weekly-dashboard.css';
 import './barcode.css';
 import './adaptive-coach.css';
 import './health-sync.css';
@@ -225,7 +227,7 @@ function WeeklyCoach({household}){
   async function save(){setMsg('Saving review…');const row={household_id:household.id,user_id:data.user.id,week_ending:data.end,...form,coach_summary:summary,updated_at:new Date().toISOString()};const{error}=await supabase.from('ft_weekly_reviews').upsert(row,{onConflict:'household_id,user_id,week_ending'});setMsg(error?error.message:'Weekly review saved privately.');if(!error)load()}
   return <div className="page"><section className="coachhero"><p className="kicker">ADAPTIVE WEEKLY COACH</p><h2>{summary}</h2><div className="coachmetrics"><div><strong>{faithful}/7</strong><span>faithful days</span></div><div><strong>{avg('steps').toLocaleString()}</strong><span>average steps</span></div><div><strong>{avg('sleep_minutes')?`${(avg('sleep_minutes')/60).toFixed(1)}h`:'—'}</strong><span>average sleep</span></div><div><strong>{waterTotal||'—'}</strong><span>water logged (oz)</span></div></div></section><section className="panel"><h2>Three priorities for next week</h2><ol className="coachpriorities">{priorities.slice(0,3).map(x=><li key={x}>{x}</li>)}</ol></section><section className="panel"><h2>Private weekly reflection</h2><div className="reviewfields"><label>Strongest moment<textarea value={form.strongest_moment} onChange={e=>setForm({...form,strongest_moment:e.target.value})}/></label><label>Hardest moment<textarea value={form.hardest_moment} onChange={e=>setForm({...form,hardest_moment:e.target.value})}/></label><label>Prayer intention<textarea value={form.prayer_intention} onChange={e=>setForm({...form,prayer_intention:e.target.value})}/></label><label>My priorities<textarea value={form.next_week_priorities} onChange={e=>setForm({...form,next_week_priorities:e.target.value})}/></label></div><button className="primary" onClick={save}>Save weekly review</button>{msg&&<p className="message status">{msg}</p>}{history.length>0&&<div className="reviewhistory"><h3>Past reviews</h3>{history.map(x=><article key={x.id}><strong>Week ending {new Date(`${x.week_ending}T12:00:00`).toLocaleDateString()}</strong><small>{x.coach_summary}</small></article>)}</div>}</section></div>
 }
-function CoachedProgress(props){return <><WeeklyCoach household={props.household}/><ProgressBeforeCoach/></>}
+function CoachedProgress(props){return <><WeeklyDashboard household={props.household} supabase={supabase} localDateKey={localDateKey}/><ProgressBeforeCoach/></>}
 ProgressHistory=CoachedProgress;
 const SettingsBeforeHealthSync=Settings;
 function HealthStepSync(){
