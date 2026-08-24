@@ -1,0 +1,6 @@
+.conciergeactions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.conciergeactions button{padding:9px 12px;border:1px solid #d1c8ba;border-radius:999px;background:#fff;color:#42515a;font-weight:700}
+.conciergeactions button.active{border-color:var(--primary,#315c48);background:#e9f1ec;color:var(--primary,#315c48)}
+.connectionbanner{position:fixed;z-index:1000;top:10px;left:50%;transform:translateX(-50%);max-width:min(620px,calc(100vw - 24px));padding:10px 16px;border-radius:999px;background:#8c3f31;color:#fff;font-weight:800;box-shadow:0 8px 24px #0003}
+@media(max-width:520px){.conciergeactions{display:grid}.conciergeactions button{width:100%}.connectionbanner{top:6px;border-radius:12px;text-align:center}}
+.reliabilityevents{margin-top:18px;padding-top:14px;border-top:1px solid #ddd5c8}.reliabilityevents article{display:grid;grid-template-columns:110px 1fr auto;gap:10px;padding:8px 0;border-bottom:1px solid #eee8de}.reliabilityevents span,.reliabilityevents small{color:#6c7471}.reliabilityevents button{margin-top:10px}@media(max-width:650px){.reliabilityevents article{grid-template-columns:1fr}.reliabilityevents article>*{display:block}}

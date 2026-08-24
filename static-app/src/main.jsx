@@ -54,9 +54,13 @@ import VoiceCommand from './voice-command.jsx';
 import './voice-command.css';
 import FamilyCoordination from './family-coordination.jsx';
 import './family-coordination.css';
+import FamilyOperations from './family-operations.jsx';
+import './family-operations.css';
 import LifeAssistant from './life-assistant.jsx';
 import './life-assistant.css';
 import AccountReliability from './account-reliability.jsx';
+import {ConnectionBanner,AppHealthReporter} from './app-health.jsx';
+import './elite-foundation.css';
 import './account-reliability.css';
 import './barcode.css';
 import './adaptive-coach.css';
@@ -317,7 +321,7 @@ function SettingsWithReliability(props){const[tab,setTab]=useState('personal');r
 Settings=SettingsWithReliability;
 
 const FamilyBeforeCoordination=Family;
-function FamilyWithCoordination(props){const[tab,setTab]=useState('today');return <div className="calmhub familyhub"><nav className="hubtabs"><button className={tab==='today'?'active':''} onClick={()=>setTab('today')}>Family today</button><button className={tab==='rhythms'?'active':''} onClick={()=>setTab('rhythms')}>Rhythms &amp; chores</button></nav>{tab==='today'?<FamilyBeforeCoordination {...props}/>:<FamilyCoordination household={props.household} supabase={supabase} localDateKey={localDateKey}/>}</div>}
+function FamilyWithCoordination(props){const[tab,setTab]=useState('today');return <div className="calmhub familyhub"><nav className="hubtabs"><button className={tab==='today'?'active':''} onClick={()=>setTab('today')}>Family today</button><button className={tab==='rhythms'?'active':''} onClick={()=>setTab('rhythms')}>Rhythms &amp; chores</button><button className={tab==='operations'?'active':''} onClick={()=>setTab('operations')}>Lists &amp; meeting</button></nav>{tab==='today'?<FamilyBeforeCoordination {...props}/>:tab==='rhythms'?<FamilyCoordination household={props.household} supabase={supabase} localDateKey={localDateKey}/>:<FamilyOperations household={props.household} supabase={supabase}/>}</div>}
 Family=FamilyWithCoordination;
 
 function PendingInvitations({household}){const[rows,setRows]=useState([]),[msg,setMsg]=useState('');async function load(){const{data}=await supabase.from('ft_household_invitations').select('*').eq('household_id',household.id).is('accepted_at',null).order('created_at');setRows(data||[])}useEffect(()=>{load()},[household.id]);async function renew(id){const{error}=await supabase.from('ft_household_invitations').update({expires_at:new Date(Date.now()+14*86400000).toISOString()}).eq('id',id);setMsg(error?error.message:'Invitation renewed for 14 days.');if(!error)load()}async function cancel(id){if(!window.confirm('Cancel this invitation?'))return;const{error}=await supabase.from('ft_household_invitations').delete().eq('id',id);setMsg(error?error.message:'Invitation cancelled.');if(!error)load()}return <div className="page adminextra"><section className="panel"><p className="kicker">INVITATIONS</p><h2>Pending family invitations</h2>{rows.length?rows.map(i=><div className="inviterow" key={i.id}><div><strong>{i.email}</strong><small>{i.life_stage} · expires {new Date(i.expires_at).toLocaleDateString()}</small></div><div><button onClick={()=>renew(i.id)}>Renew</button><button className="cancel" onClick={()=>cancel(i.id)}>Cancel</button></div></div>):<p>No pending invitations.</p>}{msg&&<p className="message status">{msg}</p>}</section></div>}
@@ -326,4 +330,6 @@ Admin=CalmAdminHub;
 
 function UniversalQuickAddLoader(){const[household,setHousehold]=useState(null);useEffect(()=>{supabase.auth.getSession().then(({data})=>{if(data.session)supabase.from('ft_households').select('id').limit(1).maybeSingle().then(({data:h})=>setHousehold(h))})},[]);return household?<UniversalQuickAdd household={household} supabase={supabase} localDateKey={localDateKey}/>:null}
 
-createRoot(document.getElementById('root')).render(<><App/><UniversalQuickAddLoader/></>);
+function EliteFoundationLoader(){const[household,setHousehold]=useState(null);useEffect(()=>{supabase.auth.getSession().then(({data})=>{if(data.session)supabase.from('ft_households').select('id').limit(1).maybeSingle().then(({data:h})=>setHousehold(h))})},[]);return household?<><ConnectionBanner/><AppHealthReporter household={household} supabase={supabase}/></>:null}
+
+createRoot(document.getElementById('root')).render(<><App/><UniversalQuickAddLoader/><EliteFoundationLoader/></>);
