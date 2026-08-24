@@ -1,0 +1,11 @@
+.homeviewtabs{display:flex;gap:8px;margin:16px 0}
+.homeviewtabs button{padding:10px 14px;border:1px solid #d7d0c5;border-radius:999px;background:white}
+.homeviewtabs button.active{background:var(--ink,#24313a);color:white;border-color:transparent}
+.homeview>.homeviewtabs{margin-bottom:0}
+.overviewstatus{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:14px 0}
+.overviewstatus article{display:grid;gap:6px;padding:16px;border:1px solid #ddd5c9;border-radius:13px;background:white}
+.overviewstatus article.safe{border-color:#a7c9b3;background:#f1f8f3}
+.overviewstatus span{font-size:10px;letter-spacing:.12em;color:#77808a}
+.overviewstatus b{font-size:24px;text-transform:capitalize}
+.overviewstatus button{justify-self:start;padding:9px 12px;border:1px solid #d0c8bc;border-radius:8px;background:white}
+.nwsweather{padding-bottom:0}.weathercard{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:18px 20px;border-radius:15px;background:linear-gradient(135deg,#243b53,#486581);color:white}.weathercard div{display:grid;gap:4px}.weathercard .kicker{color:#d9e7f2;margin:0}.weathercard strong{font-size:34px}.weathercard span{font-size:15px}.weathercard small{color:#d9e7f2}.weathercard button{padding:9px 12px;border:1px solid rgba(255,255,255,.45);border-radius:8px;background:rgba(255,255,255,.12);color:white}@media(max-width:600px){.weathercard{align-items:flex-end}.weathercard strong{font-size:30px}.weathercard small{font-size:10px}}
