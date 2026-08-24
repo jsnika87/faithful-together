@@ -18,8 +18,35 @@ try{
 if(b.action==='restaurant_phrase'){const text=String(b.text||'').replaceAll('½','1/2').replaceAll('¼','1/4').replaceAll('¾','3/4').trim();if(text.length<3)return json({error:'Describe the restaurant meal'},400);const parts=text.split(/\s+(?:with|plus)\s+|[,;\n]+/i).map((x:string)=>x.trim()).filter(Boolean).slice(0,6),items=[];for(let part of parts){let quantity=1,review=/^extra\s+/i.test(part);part=part.replace(/^extra\s+/i,'').trim();const amount=part.match(/^(\d+\/\d+|\d+(?:\.\d+)?)\s*(?:of\s+)?(?:an?\s+)?(.+)$/i);if(amount){if(amount[1].includes('/')){const[a,d]=amount[1].split('/').map(Number);quantity=d?a/d:1}else quantity=Number(amount[1]);part=amount[2].trim()}const found=await fat('foods.search',{search_expression:part,max_results:'10',page_number:'0'}),matches=list(found.foods?.food),first=matches[0];if(!first)return json({error:`No restaurant match found for “${part}”. Use manual entry below.`},404);const food=await fatFood(String(first.food_id));if(!food)return json({error:`Nutrition details unavailable for “${part}”`},404);items.push({...food,input:part,quantity,review,note:review?'Confirm how many dressing servings “extra” means.':''})}const totals=items.reduce((a:any,i:any)=>({calories:a.calories+i.calories*i.quantity,protein_g:a.protein_g+i.protein_g*i.quantity,carbs_g:a.carbs_g+i.carbs_g*i.quantity,fat_g:a.fat_g+i.fat_g*i.quantity}),{calories:0,protein_g:0,carbs_g:0,fat_g:0});return json({items,totals,disclaimer:'Review every match and serving before logging.'})}
 if(b.action==='restaurant_search'){const q=String(b.query||'').trim();if(q.length<2)return json({foods:[]});const x=await fat('foods.search',{search_expression:q,max_results:'20',page_number:'0'});return json({foods:list(x.foods?.food).map((f:any)=>({id:`fatsecret:${f.food_id}`,name:f.food_name,brand:f.brand_name||'',data_type:f.food_type||'Restaurant',description:f.food_description||'',source:'FatSecret'}))})}
 if(b.action==='restaurant_details'){const id=String(b.id||'').replace(/^fatsecret:/,''),x=await fat('food.get',{food_id:id}),f=x.food;if(!f)return json({error:'Restaurant item details were unavailable'},404);const servings=list(f.servings?.serving),s=servings.find((v:any)=>v.is_default==='1'||v.is_default===1)||servings[0];if(!s)return json({error:'This item did not include a usable serving'},404);return json({food:{id:`fatsecret:${f.food_id}`,name:f.food_name,brand:f.brand_name||'',serving_label:s.serving_description||'1 menu serving',calories:Number(s.calories||0),protein_g:Number(s.protein||0),carbs_g:Number(s.carbohydrate||0),fat_g:Number(s.fat||0),source:'FatSecret'}})}
-if(b.action==='search'){const q=String(b.query||'').trim();if(q.length<2)return json({foods:[]});const x=await search(q);return json({foods:(x.foods||[]).map((f:any)=>({id:f.fdcId,name:f.description,brand:f.brandOwner||f.brandName||'',data_type:f.dataType}))})}
-if(b.action==='details'){const x=await search(String(b.id),10),f=(x.foods||[]).find((i:any)=>String(i.fdcId)===String(b.id));if(!f)return json({error:'USDA did not return that food identifier'},502);return json({food:{id:f.fdcId,name:f.description,brand:f.brandOwner||f.brandName||'',serving_label:'100 g',...macros(f)}})}
+if(b.action==='search'){
+  const q=String(b.query||'').trim();
+  if(q.length<2)return json({foods:[]});
+  const safe=q.replace(/[^a-z0-9\s-]/gi,' ').replace(/\s+/g,' ').trim();
+  const{data:memberships}=await sb.from('ft_household_members').select('household_id').eq('user_id',user.id);
+  const householdIds=(memberships||[]).map((m:any)=>m.household_id);
+  let recipes:any[]=[];
+  if(householdIds.length){
+    const{data}=await sb.from('ft_recipes').select('id,name,yield_servings,calories_total,protein_total_g,carbs_total_g,fat_total_g,shared,created_by').in('household_id',householdIds).not('calories_total','is',null).or(`name.ilike.%${safe}%,ingredient_text.ilike.%${safe}%`).limit(8);
+    recipes=(data||[]).filter((r:any)=>r.shared||r.created_by===user.id).map((r:any)=>({id:`recipe:${r.id}`,name:r.name,brand:'My recipes',data_type:'Personal recipe'}));
+  }
+  const x=await search(q);
+  const foods=(x.foods||[]).map((f:any)=>({id:f.fdcId,name:f.description,brand:f.brandOwner||f.brandName||'',data_type:f.dataType}));
+  return json({foods:[...recipes,...foods]});
+}
+if(b.action==='details'){
+  const id=String(b.id||'');
+  if(id.startsWith('recipe:')){
+    const recipeId=id.slice(7),{data:r}=await sb.from('ft_recipes').select('*').eq('id',recipeId).single();
+    if(!r)return json({error:'That saved recipe is no longer available'},404);
+    const{data:member}=await sb.from('ft_household_members').select('role').eq('household_id',r.household_id).eq('user_id',user.id).maybeSingle();
+    if(!member||(!r.shared&&r.created_by!==user.id))return json({error:'You do not have access to that recipe'},403);
+    const yieldServings=Math.max(.01,Number(r.yield_servings||1));
+    return json({food:{id,name:r.name,brand:'My recipes',source:'Personal recipe',serving_label:`1 of ${yieldServings} recipe servings`,calories:Number(r.calories_total||0)/yieldServings,protein_g:Number(r.protein_total_g||0)/yieldServings,carbs_g:Number(r.carbs_total_g||0)/yieldServings,fat_g:Number(r.fat_total_g||0)/yieldServings}});
+  }
+  const x=await search(id,10),f=(x.foods||[]).find((i:any)=>String(i.fdcId)===id);
+  if(!f)return json({error:'USDA did not return that food identifier'},502);
+  return json({food:{id:f.fdcId,name:f.description,brand:f.brandOwner||f.brandName||'',serving_label:'100 g',...macros(f)}});
+}
 if(b.action==='parse_meal'&&(Deno.env.get('GEMINI_API_KEY')||'').trim())b.action='ai_parse_recipe';
 if(b.action==='ai_parse_recipe'){
   const text=String(b.text||'').trim();
