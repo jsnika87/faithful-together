@@ -34,10 +34,19 @@ Deno.serve(async req=>{
       if(due(pref.checkin_enabled,pref.checkin_time,pref.last_checkin_sent_at)){kind='checkin';title='Finish today faithfully';message='Take a minute for your evening check-in.';stamp='last_checkin_sent_at'}
       else if(due(pref.workout_enabled,pref.workout_time,pref.last_workout_sent_at)){kind='workout';title='Your next right step';message='Your workout is ready when you are.';stamp='last_workout_sent_at'}
       else if(pref.weekly_review_day===weekday&&due(pref.weekly_review_enabled,pref.weekly_review_time,pref.last_weekly_review_sent_at)){kind='weekly';title='Look back, then move forward';message='Your weekly review is ready.';stamp='last_weekly_review_sent_at'}
+      if(!kind&&pref.smart_nudges_enabled&&(pref.smart_nudges_sent_on!==today||Number(pref.smart_nudges_sent_count||0)<2)){
+        const smartCount=pref.smart_nudges_sent_on===today?Number(pref.smart_nudges_sent_count||0):0;
+        const{data:settings}=await sb.from('ft_member_settings').select('hydration_goal_oz,step_goal').eq('household_id',pref.household_id).eq('user_id',pref.user_id).single();
+        if(pref.hydration_nudge_time?.slice(0,5)===now){const{data:water}=await sb.from('ft_water_logs').select('ounces').eq('household_id',pref.household_id).eq('user_id',pref.user_id).eq('logged_on',today);const total=(water||[]).reduce((sum:number,item:any)=>sum+Number(item.ounces||0),0),goal=Number(settings?.hydration_goal_oz||64);if(total<goal*.5){kind='smart';title='Hydration is behind pace';message=`You are at ${total} of ${goal} oz. A glass now gets the day moving again.`}}
+        if(!kind&&pref.movement_nudge_time?.slice(0,5)===now){const{data:checks}=await sb.from('ft_daily_checkins').select('steps,updated_at').eq('household_id',pref.household_id).eq('user_id',pref.user_id).order('updated_at',{ascending:false}).limit(1);const check=checks?.[0],checkDay=check?Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:pref.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(check.updated_at)).filter(x=>x.type!=='literal').map(x=>[x.type,x.value])):null,steps=checkDay&&`${checkDay.year}-${checkDay.month}-${checkDay.day}`===today?Number(check.steps||0):0,goal=Number(settings?.step_goal||7000);if(steps<goal*.6){kind='smart';title='A short walk would change the day';message=`You have ${steps.toLocaleString()} steps. Ten focused minutes is a faithful next move.`}}
+        if(!kind&&pref.faithful_nudge_time?.slice(0,5)===now){const{data:checks}=await sb.from('ft_daily_checkins').select('completed_actions,updated_at').eq('household_id',pref.household_id).eq('user_id',pref.user_id).order('updated_at',{ascending:false}).limit(1);const check=checks?.[0],checkDay=check?Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:pref.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(check.updated_at)).filter(x=>x.type!=='literal').map(x=>[x.type,x.value])):null,done=checkDay&&`${checkDay.year}-${checkDay.month}-${checkDay.day}`===today?(check.completed_actions||[]).length:0;if(done<5){kind='smart';title='Finish one faithful step';message=`${5-done} steps remain. Choose one meaningful finish; the day does not need perfection.`}}
+        if(kind==='smart')pref.smart_nudges_sent_count=smartCount+1;
+      }
       if(!kind)continue;
       const{data:subs}=await sb.from('ft_push_subscriptions').select('*').eq('household_id',pref.household_id).eq('user_id',pref.user_id);
       for(const sub of subs||[])if(await send(sub,{title,body:message,url:kind==='weekly'?`${appUrl}/?view=progress`:appUrl}))sent++;
-      await sb.from('ft_notification_preferences').update({[stamp]:today,updated_at:new Date().toISOString()}).eq('household_id',pref.household_id).eq('user_id',pref.user_id);
+      const update=kind==='smart'?{smart_nudges_sent_on:today,smart_nudges_sent_count:pref.smart_nudges_sent_count,updated_at:new Date().toISOString()}:{[stamp]:today,updated_at:new Date().toISOString()};
+      await sb.from('ft_notification_preferences').update(update).eq('household_id',pref.household_id).eq('user_id',pref.user_id);
     }
     return json({ok:true,sent});
   }
